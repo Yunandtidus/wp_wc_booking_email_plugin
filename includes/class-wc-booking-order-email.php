@@ -74,7 +74,8 @@ class WC_Booking_Order_Email extends WC_Email {
 	 * @return string the email content depending on calendar_id
 	 */
 	public function get_mail_subject($reservation) {
-		return $this->get_option( 'subject_'.$reservation->calendar_id);
+		return 
+		$this->get_option( 'subject_'.$reservation->calendar_id);
 	}
 
 	/**
