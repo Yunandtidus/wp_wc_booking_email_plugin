@@ -31,8 +31,6 @@ class WC_Booking_Order_Email extends WC_Email {
 
 		$this->description = 'E-mail dépendant de l\'id du produit';
 
-		$this->subject = 'Confirmation de réservation';
-
 		$this->template_base = dirname(CUSTOM_EMAIL_PLUGIN_FILE) . '/../templates/';
 
 		add_action( 'woocommerce_order_status_pending_to_on-hold_notification', array( $this, 'trigger' ) );
@@ -62,20 +60,45 @@ class WC_Booking_Order_Email extends WC_Email {
 		// this sets the recipient to the client's email
 		$this->recipient = $this->object->get_billing_email();
 
-		if ( ! $this->is_enabled())
+		$reservation = $this->get_reservation();
+
+		if ( ! $this->is_enabled() || 'no' === $this->get_option('enabled_'.$reservation->calendar_id))
 			return;
 
-		$this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() );
+		$this->send( $this->get_recipient(), $this->get_mail_subject($reservation), $this->get_mail_content($reservation), $this->get_headers(), $this->get_attachments() );
 	}
 
-
 	/**
-	 * get_content function.
-	 * Note that only one product should be selected in the cart
+	 * get_mail_subject function.
 	 * @since 1.0
 	 * @return string the email content depending on calendar_id
 	 */
-	public function get_content() {
+	public function get_mail_subject($reservation) {
+		return $this->get_option( 'subject_'.$reservation->calendar_id);
+	}
+
+	/**
+	 * get_mail_content function.
+	 * @since 1.0
+	 * @return string the email content depending on calendar_id
+	 */
+	public function get_mail_content($reservation) {
+		$rData = json_decode($reservation->data, true);
+		$date = DateTime::createFromFormat('Y-m-d', $rData['check_in']);
+
+		$mail_content = $this->get_option( 'mail_template_'.$reservation->calendar_id);
+		// replace placeholder {date_jeu}
+		return str_replace("{date_jeu}", $date->format('d/m/Y').' à '.$rData['start_hour'], $mail_content);
+	}
+
+	/**
+	 * get reservation (booking information)
+	 * Note that only one product should be selected in the cart
+	 * @since 1.0
+	 * @return the reservation
+	 */
+
+	public function get_reservation(){
 		global $wpdb;
 		global $DOPBSPWooCommerce;
 
@@ -83,17 +106,7 @@ class WC_Booking_Order_Email extends WC_Email {
 			$reservations_data = $wpdb->get_results($wpdb->prepare('SELECT * FROM '.$DOPBSPWooCommerce->tables->woocommerce.' WHERE order_item_id=%d', $order_item_id));
 
 			foreach($reservations_data as $r){
-				$rData = json_decode($reservations_data[0]->data, true);
-				$date = DateTime::createFromFormat('Y-m-d', $rData['check_in']);
-
-				$mail_content = wc_get_template_html(
-					'email_calendar_'.$r->calendar_id.'.html',
-					array(),
-					$this->template_base,
-					$this->template_base
-				);
-				// replace placeholder {date_jeu}
-				return str_replace("{date_jeu}", $date->format('d/m/Y').' à '.$rData['start_hour'], $mail_content);
+				return $r;
 			}
 		}
 	}
@@ -104,19 +117,18 @@ class WC_Booking_Order_Email extends WC_Email {
 	 * @since 1.0
 	 */
 	public function init_form_fields() {
+
+		global $wpdb;
+		global $DOPBSP;
+
+		$calendars = $reservations_data = $wpdb->get_results('SELECT * FROM '.$DOPBSP->tables->calendars);
+
 		$this->form_fields = array(
-			'enabled'    => array(
-				'title'   => 'Enable/Disable',
+			'enabled'	  => array(
+				'title'   => 'Activer/Désactiver',
 				'type'    => 'checkbox',
-				'label'   => 'Enable this email notification',
+				'label'   => 'Activer la notification par Email',
 				'default' => 'yes'
-			),
-			'subject'    => array(
-				'title'       => 'Subject',
-				'type'        => 'text',
-				'description' => sprintf( 'Le sujet du mail. Laisser vide pour utiliser la valeur par défaut: <code>%s</code>.', $this->subject ),
-				'placeholder' => '',
-				'default'     => ''
 			),
 			'email_type'      => array(
 				'title'       => __( 'Email type', 'woocommerce' ),
@@ -128,7 +140,34 @@ class WC_Booking_Order_Email extends WC_Email {
 				'desc_tip'    => true,
 			)
 		);
+
+		// Form fields depending on calendars
+		foreach ($calendars as $c){
+
+			$this->form_fields['enabled_'.$c->id] = array(
+				'title'   => 'Activer l\'envoi de mail pour le calendrier n°'.$c->id.' ('.$c->name.')',
+				'type'    => 'checkbox',
+				'label'   => 'Activer',
+				'default' => 'no'
+			);
+			$this->form_fields['subject_'.$c->id] = array(
+				'title'       => 'Sujet pour le calendrier n°'.$c->id.' ('.$c->name.')',
+				'type'        => 'text',
+				'description' => 'Le sujet des mails pour le calendrier n°'.$c->id.' ('.$c->name.')',
+				'placeholder' => '',
+				'default'     => 'Confirmation de réservation'
+			);
+
+			$this->form_fields['mail_template_'.$c->id] = array(
+				'title'       => 'Sujet pour le calendrier n°'.$c->id.' ('.$c->name.')',
+				'type'        => 'textarea',
+				'description' => 'Le contenu des mails pour le calendrier n°'.$c->id.' ('.$c->name.')',
+				'placeholder' => '',
+				'default'     => 'Contenu du mail'
+			);
+		}
 	}
+
 
 
 }
