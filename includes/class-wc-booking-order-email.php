@@ -23,9 +23,8 @@ class WC_Booking_Order_Email extends WC_Email {
 		// title in WooCommerce backend - Email settings
 		$this->title = 'Mail Client Escape Game';
 		$this->description = 'E-mail dépendant de l\'id du produit';
-		$this->template_base = dirname(CUSTOM_EMAIL_PLUGIN_FILE) . '/../templates/';
 
-		add_action( 'woocommerce_order_status_pending_to_on-hold_notification', array( $this, 'trigger' ) );
+		add_action('woocommerce_order_status_pending_to_on-hold_notification', array( $this, 'trigger' ));
 		parent::__construct();
 	}
 
@@ -35,16 +34,16 @@ class WC_Booking_Order_Email extends WC_Email {
 	 * @since 1.0
 	 * @param int $order_id
 	 */
-	 public function trigger( $order_id, $order = false ) {
+	 public function trigger($order_id, $order = false) {
 
- 		if ( $order_id && ! is_a( $order, 'WC_Order' ) ) {
+ 		if ($order_id && !is_a( $order, 'WC_Order')) {
  			$order = wc_get_order( $order_id );
  		}
 
- 		if ( is_a( $order, 'WC_Order' ) ) {
+ 		if (is_a( $order, 'WC_Order')) {
  			$this->object                         = $order;
  			$this->recipient                      = $this->object->get_billing_email();
- 			$this->placeholders['{order_date}']   = wc_format_datetime( $this->object->get_date_created() );
+ 			$this->placeholders['{order_date}']   = wc_format_datetime( $this->object->get_date_created());
  			$this->placeholders['{order_number}'] = $this->object->get_order_number();
  		}
 
@@ -53,10 +52,10 @@ class WC_Booking_Order_Email extends WC_Email {
 
 		$reservation = $this->get_reservation();
 
-		if ( ! $this->is_enabled() || 'no' === $this->get_option('enabled_'.$reservation->calendar_id))
+		if (! $this->is_enabled() || 'no' === $this->get_option('enabled_'.$reservation->calendar_id))
 			return;
 
-		$this->send( $this->get_recipient(), $this->get_mail_subject($reservation), $this->get_mail_content($reservation), $this->get_headers(), $this->get_attachments() );
+		$this->send($this->get_recipient(), $this->get_mail_subject($reservation), $this->get_mail_content($reservation), $this->get_headers(), $this->get_attachments());
 	}
 
 	/**
@@ -66,7 +65,7 @@ class WC_Booking_Order_Email extends WC_Email {
 	 */
 	public function get_mail_subject($reservation) {
 		return 
-		$this->get_option( 'subject_'.$reservation->calendar_id);
+		$this->get_option('subject_'.$reservation->calendar_id);
 	}
 
 	/**
