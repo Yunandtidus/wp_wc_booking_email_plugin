@@ -2,11 +2,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-// Define WC_PLUGIN_FILE.
-if ( ! defined( 'CUSTOM_EMAIL_PLUGIN_FILE' ) ) {
-	define( 'CUSTOM_EMAIL_PLUGIN_FILE', __FILE__ );
-}
-
 if ( ! class_exists( 'WC_Booking_Order_Email', false ) ) :
 /**
  * A custom WooCommerce Email class with template corresponding to productId
@@ -15,7 +10,6 @@ if ( ! class_exists( 'WC_Booking_Order_Email', false ) ) :
  * @extends \WC_Email
  */
 class WC_Booking_Order_Email extends WC_Email {
-
 
 	/**
 	 * Set email defaults
@@ -28,15 +22,12 @@ class WC_Booking_Order_Email extends WC_Email {
 
 		// title in WooCommerce backend - Email settings
 		$this->title = 'Mail Client Escape Game';
-
 		$this->description = 'E-mail dépendant de l\'id du produit';
-
 		$this->template_base = dirname(CUSTOM_EMAIL_PLUGIN_FILE) . '/../templates/';
 
 		add_action( 'woocommerce_order_status_pending_to_on-hold_notification', array( $this, 'trigger' ) );
-
 		parent::__construct();
-  }
+	}
 
 	/**
 	 * Determine if the email should actually be sent and setup email merge variables
@@ -168,8 +159,5 @@ class WC_Booking_Order_Email extends WC_Email {
 			);
 		}
 	}
-
-
-
 }
 endif;
