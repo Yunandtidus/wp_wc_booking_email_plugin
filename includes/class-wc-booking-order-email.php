@@ -24,7 +24,7 @@ class WC_Booking_Order_Email extends WC_Email {
 		$this->title = 'Mail Client Escape Game';
 		$this->description = 'E-mail dépendant de l\'id du produit';
 
-		add_action('woocommerce_order_status_pending_to_on-hold_notification', array( $this, 'trigger' ));
+		add_action('woocommerce_order_status_completed_notification', array( $this, 'trigger' ));
 		parent::__construct();
 	}
 
@@ -41,21 +41,27 @@ class WC_Booking_Order_Email extends WC_Email {
  		}
 
  		if (is_a( $order, 'WC_Order')) {
- 			$this->object                         = $order;
- 			$this->recipient                      = $this->object->get_billing_email();
- 			$this->placeholders['{order_date}']   = wc_format_datetime( $this->object->get_date_created());
- 			$this->placeholders['{order_number}'] = $this->object->get_order_number();
+ 			$this->object = $order;
  		}
-
-		// this sets the recipient to the client's email
-		$this->recipient = $this->object->get_billing_email();
 
 		$reservation = $this->get_reservation();
 
 		if (! $this->is_enabled() || 'no' === $this->get_option('enabled_'.$reservation->calendar_id))
 			return;
 
-		$this->send($this->get_recipient(), $this->get_mail_subject($reservation), $this->get_mail_content($reservation), $this->get_headers(), $this->get_attachments());
+		$headers = $this->get_headers();
+		if ("yes" === $this->get_option('copieToAdmin')){
+			$headers .= "Bcc: " . get_option('admin_email'). "\r\n";
+		}
+
+		$this->send(
+			$this->object->get_billing_email(),
+			$this->get_mail_subject($reservation),
+			$this->get_mail_content($reservation),
+			$headers,
+			$this->get_attachments()
+		);
+
 	}
 
 	/**
@@ -64,8 +70,7 @@ class WC_Booking_Order_Email extends WC_Email {
 	 * @return string the email content depending on calendar_id
 	 */
 	public function get_mail_subject($reservation) {
-		return 
-		$this->get_option('subject_'.$reservation->calendar_id);
+		return $this->get_option('subject_'.$reservation->calendar_id);
 	}
 
 	/**
@@ -74,12 +79,11 @@ class WC_Booking_Order_Email extends WC_Email {
 	 * @return string the email content depending on calendar_id
 	 */
 	public function get_mail_content($reservation) {
-		$rData = json_decode($reservation->data, true);
-		$date = DateTime::createFromFormat('Y-m-d', $rData['check_in']);
+		$date = DateTime::createFromFormat('Y-m-d', $reservation->check_in);
 
 		$mail_content = $this->get_option( 'mail_template_'.$reservation->calendar_id);
 		// replace placeholder {date_jeu}
-		return str_replace("{date_jeu}", $date->format('d/m/Y').' à '.$rData['start_hour'], $mail_content);
+		return str_replace("{date_jeu}", $date->format('d/m/Y').' à '.$reservation->start_hour, $mail_content);
 	}
 
 	/**
@@ -91,10 +95,10 @@ class WC_Booking_Order_Email extends WC_Email {
 
 	public function get_reservation(){
 		global $wpdb;
-		global $DOPBSPWooCommerce;
+		global $DOPBSP;
 
 		foreach ($this->object->get_items() as $order_item_id => $order_item){
-			$reservations_data = $wpdb->get_results($wpdb->prepare('SELECT * FROM '.$DOPBSPWooCommerce->tables->woocommerce.' WHERE order_item_id=%d', $order_item_id));
+			$reservations_data = $wpdb->get_results($wpdb->prepare('SELECT * FROM '.$DOPBSP->tables->reservations.' WHERE transaction_id=%d', $this->object->get_id()));
 
 			foreach($reservations_data as $r){
 				return $r;
@@ -119,6 +123,12 @@ class WC_Booking_Order_Email extends WC_Email {
 				'title'   => 'Activer/Désactiver',
 				'type'    => 'checkbox',
 				'label'   => 'Activer la notification par Email',
+				'default' => 'yes'
+			),
+			'copieToAdmin'	  => array(
+				'title'   => 'Envoyer une copie à l\'administrateur',
+				'type'    => 'checkbox',
+				'label'   => 'Activer la copie à l\'administrateur par Email',
 				'default' => 'yes'
 			),
 			'email_type'      => array(
